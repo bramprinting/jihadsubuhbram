@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Absensi Checklist Subuh - Bram Printing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .glassmorphism {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .modal {
+            transition: opacity 0.3s ease-in-out;
+        }
+        .chart-filter-btn.active, .admin-tab-btn.active {
+            background-color: #4f46e5; /* bg-indigo-600 */
+            color: white;
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator,
+        input[type="time"]::-webkit-calendar-picker-indicator {
+            filter: invert(0.8);
+        }
+        .month-nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #print-area, #print-area * {
+                visibility: visible;
+            }
+            #print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+            @page {
+                size: A4 landscape;
+                margin: 15mm;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white antialiased">
+    <div class="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-gray-900 via-blue-900/40 to-gray-900 -z-10"></div>
+
+    <div id="main-app-content" class="container mx-auto p-4 md:p-8 relative hidden">
+        <div class="absolute top-4 right-4">
+            <button id="open-admin-panel" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-lg transition">
+                Admin
+            </button>
+        </div>
+
+        <header class="text-center mb-8 md:mb-12 fade-in">
+            <h1 class="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-teal-300">
+                ABSENSI CHECKLIST SUBUH
+            </h1>
+            <p class="text-gray-400 mt-2 text-lg">BRAM PRINTING</p>
+            <p class="text-gray-500 text-sm">Kalitidu, Bojonegoro</p>
+        </header>
+        
+        <div id="announcement-banner" class="hidden glassmorphism rounded-lg p-4 mb-8 text-center"></div>
+
+        <main class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <section id="form-absen" class="glassmorphism rounded-2xl p-6 shadow-2xl fade-in" style="animation-delay: 0.1s;">
+                <h2 class="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2">Input Checklist Subuh</h2>
+                <div id="message-box" class="hidden p-4 mb-4 rounded-lg"></div>
+                <form id="attendance-form" class="space-y-4">
+                    <div>
+                        <label for="member-select" class="block mb-2 text-sm font-medium text-gray-300">Nama Anda</label>
+                        <select id="member-select" class="w-full bg-gray-800 border border-gray-600 rounded-lg p-3 disabled:bg-gray-700 disabled:cursor-not-allowed"></select>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="surah-select" class="block mb-2 text-sm font-medium text-gray-300">Nama Surat</label>
+                            <select id="surah-select" class="w-full bg-gray-800 border border-gray-600 rounded-lg p-3"></select>
+                        </div>
+                        <div>
+                            <label for="ayah-input" class="block mb-2 text-sm font-medium text-gray-300">Ayat ke-</label>
+                            <input type="number" id="ayah-input" placeholder="Contoh: 7" class="w-full bg-gray-800 border border-gray-600 rounded-lg p-3">
+                        </div>
+                    </div>
+                    <button type="submit" id="submit-button" class="w-full bg-gradient-to-r from-blue-500 to-teal-400 hover:from-blue-600 hover:to-teal-500 text-white font-bold py-3 px-4 rounded-lg shadow-lg transform hover:scale-105 transition-transform duration-300">
+                        Kirim Laporan
+                    </button>
+                </form>
+            </section>
+
+            <section id="dashboard-hari-ini" class="glassmorphism rounded-2xl p-6 shadow-2xl fade-in" style="animation-delay: 0.2s;">
+                <h2 id="checklist-title" class="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2">Checklist Hari Ini</h2>
+                <div class="mb-4">
+                    <h3 class="font-semibold text-blue-300 mb-2">✅ Tepat Waktu (<span class="cutoff-time-display">05:00</span>)</h3>
+                    <ul id="attended-list-ontime" class="space-y-2"></ul>
+                </div>
+                <div class="mb-4">
+                    <h3 class="font-semibold text-yellow-400 mb-2">⚠️ Terlambat (> <span class="cutoff-time-display">05:00</span>)</h3>
+                    <ul id="attended-list-late" class="space-y-2"></ul>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-red-400 mb-2"><span id="absent-title">❌ Belum Absen</span></h3>
+                    <ul id="unattended-list" class="space-y-2"></ul>
+                </div>
+            </section>
+        </main>
+
+        <div id="leaderboard-container" class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8"></div>
+        
+        <div id="monthly-recap-container" class="mb-8"></div>
+
+        <section id="laporan-grafik" class="glassmorphism rounded-2xl p-6 shadow-2xl fade-in" style="animation-delay: 0.4s;">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2 gap-4">
+                <h2 class="text-2xl font-semibold pb-2">Grafik Laporan</h2>
+                <div id="chart-filters" class="flex flex-wrap items-center gap-2">
+                    <button data-filter="monthly" class="chart-filter-btn active px-3 py-1 rounded-md bg-gray-700 hover:bg-indigo-600 transition text-sm">Presentase Bulan Ini</button>
+                    <button id="open-custom-range-popup" class="chart-filter-btn px-3 py-1 rounded-md bg-gray-700 hover:bg-indigo-600 transition text-sm">Presentase by Tgl</button>
+                </div>
+            </div>
+            <p id="chart-subtitle" class="text-sm text-center text-gray-400 mb-4 h-5"></p>
+            <div class="bg-gray-800/50 p-4 rounded-lg">
+                <canvas id="attendance-chart"></canvas>
+            </div>
+        </section>
+
+        <footer class="text-center mt-12 text-gray-500 text-sm">
+            <p>Dibuat dengan ❤️ untuk Bram Printing</p>
+        </footer>
+    </div>
+
+    <!-- User Login Modal -->
+    <div id="user-login-modal" class="modal fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4">
+        <div class="glassmorphism w-full max-w-sm rounded-2xl shadow-2xl p-6 md:p-8 relative">
+            <h2 class="text-2xl font-bold mb-6 text-center">Login Anggota Tim</h2>
+            <form id="user-login-form" class="space-y-4">
+                <div>
+                    <label for="login-member-select" class="block mb-2 text-sm font-medium text-gray-300">Pilih Nama Anda</label>
+                    <select id="login-member-select" class="w-full bg-gray-800 border border-gray-600 rounded-lg p-3"></select>
+                </div>
+                <div>
+                    <label for="login-password-input" class="block mb-2 text-sm font-medium text-gray-300">Kata Sandi</label>
+                    <input type="password" id="login-password-input" class="w-full bg-gray-800 border border-gray-600 rounded-lg p-3">
+                    <p id="login-password-error" class="text-red-400 text-sm mt-2 hidden">Kata sandi salah.</p>
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition">Masuk</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin Password Modal -->
+    <div id="password-modal" class="modal hidden fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4">
+        <div class="glassmorphism w-full max-w-sm rounded-2xl shadow-2xl p-6 md:p-8 relative">
+            <button id="close-password-modal" class="absolute top-4 right-4 text-gray-400 hover:text-white transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <h2 class="text-2xl font-bold mb-6 text-center">Akses Admin</h2>
+            <form id="password-form" class="space-y-4">
+                <div>
+                    <label for="password-input" class="block mb-2 text-sm font-medium text-gray-300">Kata Sandi</label>
+                    <input type="password" id="password-input" class="w-full bg-gray-800 border border-gray-600 rounded-lg p-3 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                    <p id="password-error" class="text-red-400 text-sm mt-2 hidden">Kata sandi salah.</p>
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition">Masuk</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin Panel Modal -->
+    <div id="admin-modal" class="modal hidden fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4">
+        <div class="glassmorphism w-full max-w-6xl max-h-[90vh] rounded-2xl shadow-2xl p-6 md:p-8 overflow-y-auto relative">
+            <button id="close-admin-panel" class="absolute top-4 right-4 text-gray-400 hover:text-white transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <h2 class="text-3xl font-bold mb-6 text-center">Panel Admin</h2>
+            
+            <div class="mb-6 border-b border-gray-700 flex justify-center">
+                <button data-tab="rekap" class="admin-tab-btn active px-4 py-2 text-sm font-medium">Rekap Bulanan (Admin)</button>
+                <button data-tab="anggota" class="admin-tab-btn px-4 py-2 text-sm font-medium">Anggota Tim</button>
+                <button data-tab="pengaturan" class="admin-tab-btn px-4 py-2 text-sm font-medium">Pengaturan</button>
+            </div>
+            
+            <div id="tab-content-rekap" class="admin-tab-content">
+                <div id="admin-monthly-recap-container"></div>
+            </div>
+
+            <div id="tab-content-anggota" class="admin-tab-content hidden">
+                <h3 class="text-2xl font-semibold mb-4">Manajemen Tim</h3>
+                <form id="add-member-form" class="flex gap-2 mb-6">
+                    <input type="text" id="new-member-name" placeholder="Masukkan nama anggota baru" class="w-full bg-gray-800 border border-gray-600 rounded-lg p-3">
+                    <button type="submit" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg transition">Tambah</button>
+                </form>
+                <ul id="member-list" class="space-y-2"></ul>
+            </div>
+
+            <div id="tab-content-pengaturan" class="admin-tab-content hidden">
+                 <h3 class="text-2xl font-semibold mb-4">Pengaturan Aplikasi</h3>
+                 <form id="settings-form" class="space-y-4 max-w-md mx-auto">
+                    <div>
+                        <label for="cutoff-time-setting" class="block text-sm font-medium text-gray-300">Batas Waktu Tepat Waktu</label>
+                        <input type="time" id="cutoff-time-setting" class="w-full bg-gray-800 border border-gray-600 rounded-md p-2 mt-1">
+                    </div>
+                     <div>
+                        <label for="announcement-setting" class="block text-sm font-medium text-gray-300">Pengumuman (kosongkan untuk hapus)</label>
+                        <textarea id="announcement-setting" rows="3" class="w-full bg-gray-800 border border-gray-600 rounded-md p-2 mt-1"></textarea>
+                    </div>
+                    <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-lg transition">Simpan Pengaturan</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Range Modal -->
+    <div id="custom-range-modal" class="modal hidden fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4">
+        <div class="glassmorphism w-full max-w-md rounded-2xl shadow-2xl p-6 md:p-8 relative">
+            <button id="close-custom-range-popup" class="absolute top-4 right-4 text-gray-400 hover:text-white transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <h2 class="text-2xl font-bold mb-6 text-center">Pilih Rentang Tanggal</h2>
+            <form id="custom-range-form-popup" class="space-y-4">
+                <div>
+                    <label for="start-date-popup" class="block mb-2 text-sm font-medium text-gray-300">Tanggal Mulai</label>
+                    <input type="date" id="start-date-popup" class="w-full bg-gray-800 border border-gray-600 rounded-md p-2">
+                </div>
+                <div>
+                    <label for="end-date-popup" class="block mb-2 text-sm font-medium text-gray-300">Tanggal Selesai</label>
+                    <input type="date" id="end-date-popup" class="w-full bg-gray-800 border border-gray-600 rounded-md p-2">
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition">Tampilkan Presentase</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Edit/Add Past Attendance Modal -->
+    <div id="edit-attendance-modal" class="modal hidden fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4">
+        <div class="glassmorphism w-full max-w-md rounded-2xl shadow-2xl p-6 md:p-8 relative">
+             <button id="close-edit-attendance-modal" class="absolute top-4 right-4 text-gray-400 hover:text-white transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <h2 id="edit-modal-title" class="text-2xl font-bold mb-6 text-center">Edit Absensi</h2>
+            <form id="edit-attendance-form" class="space-y-4"></form>
+        </div>
+    </div>
+
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, addDoc, doc, deleteDoc, query, where, getDocs, Timestamp, writeBatch, limit, updateDoc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        // --- CONFIG & INITIALIZATION ---
+        const firebaseConfig = {
+          apiKey: "AIzaSyBuFRAkWDZN3hRQIgLj3bAoCCL66YuN0Ek",
+          authDomain: "jihadbramprinting.firebaseapp.com",
+          projectId: "jihadbramprinting",
+          storageBucket: "jihadbramprinting.firebasestorage.app",
+          messagingSenderId: "558828419971",
+          appId: "1:558828419971:web:94e81bdb4d9867831054b6"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // --- COLLECTIONS ---
+        const membersCollection = collection(db, "members");
+        const attendanceCollection = collection(db, "attendance");
+        const settingsDoc = doc(db, "settings", "appConfig");
+
+        // --- DOM ELEMENTS ---
+        const dom = {
+            mainAppContent: document.getElementById('main-app-content'),
+            memberSelect: document.getElementById('member-select'),
+            surahSelect: document.getElementById('surah-select'),
+            attendanceForm: document.getElementById('attendance-form'),
+            ayahInput: document.getElementById('ayah-input'),
+            submitButton: document.getElementById('submit-button'),
+            messageBox: document.getElementById('message-box'),
+            attendedListOnTime: document.getElementById('attended-list-ontime'),
+            attendedListLate: document.getElementById('attended-list-late'),
+            unattendedList: document.getElementById('unattended-list'),
+            monthlyRecapContainer: document.getElementById('monthly-recap-container'),
+            addMemberForm: document.getElementById('add-member-form'),
+            newMemberNameInput: document.getElementById('new-member-name'),
+            memberList: document.getElementById('member-list'),
+            adminModal: document.getElementById('admin-modal'),
+            openAdminPanelBtn: document.getElementById('open-admin-panel'),
+            closeAdminPanelBtn: document.getElementById('close-admin-panel'),
+            chartCanvas: document.getElementById('attendance-chart'),
+            chartFilters: document.getElementById('chart-filters'),
+            chartSubtitle: document.getElementById('chart-subtitle'),
+            customRangeModal: document.getElementById('custom-range-modal'),
+            openCustomRangePopupBtn: document.getElementById('open-custom-range-popup'),
+            closeCustomRangePopupBtn: document.getElementById('close-custom-range-popup'),
+            customRangeFormPopup: document.getElementById('custom-range-form-popup'),
+            startDatePopupInput: document.getElementById('start-date-popup'),
+            endDatePopupInput: document.getElementById('end-date-popup'),
+            checklistTitle: document.getElementById('checklist-title'),
+            announcementBanner: document.getElementById('announcement-banner'),
+            adminTabs: document.querySelectorAll('.admin-tab-btn'),
+            adminTabContents: document.querySelectorAll('.admin-tab-content'),
+            settingsForm: document.getElementById('settings-form'),
+            cutoffTimeSetting: document.getElementById('cutoff-time-setting'),
+            announcementSetting: document.getElementById('announcement-setting'),
+            editAttendanceModal: document.getElementById('edit-attendance-modal'),
+            closeEditAttendanceModalBtn: document.getElementById('close-edit-attendance-modal'),
+            editAttendanceForm: document.getElementById('edit-attendance-form'),
+            editModalTitle: document.getElementById('edit-modal-title'),
+            adminMonthlyRecapContainer: document.getElementById('admin-monthly-recap-container'),
+            passwordModal: document.getElementById('password-modal'),
+            closePasswordModalBtn: document.getElementById('close-password-modal'),
+            passwordForm: document.getElementById('password-form'),
+            passwordInput: document.getElementById('password-input'),
+            passwordError: document.getElementById('password-error'),
+            absentTitle: document.getElementById('absent-title'),
+            userLoginModal: document.getElementById('user-login-modal'),
+            userLoginForm: document.getElementById('user-login-form'),
+            loginMemberSelect: document.getElementById('login-member-select'),
+            loginPasswordInput: document.getElementById('login-password-input'),
+            loginPasswordError: document.getElementById('login-password-error'),
+            leaderboardContainer: document.getElementById('leaderboard-container'),
+        };
+        
+        // --- GLOBAL STATE ---
+        let allMembers = [];
+        let attendanceChart = null;
+        let allAttendanceData = [];
+        let displayedMonthDate = new Date();
+        let adminDisplayedMonthDate = new Date();
+        let appSettings = { cutoffTime: "05:00", announcement: "" };
+        let loggedInUser = null;
+
+        // --- UTILITY & SETUP FUNCTIONS ---
+        const surahList = ["Al-Fatihah", "Al-Baqarah", "Ali 'Imran", "An-Nisa'", "Al-Ma'idah", "Al-An'am", "Al-A'raf", "Al-Anfal", "At-Tawbah", "Yunus", "Hud", "Yusuf", "Ar-Ra'd", "Ibrahim", "Al-Hijr", "An-Nahl", "Al-Isra'", "Al-Kahf", "Maryam", "Taha", "Al-Anbiya'", "Al-Hajj", "Al-Mu'minun", "An-Nur", "Al-Furqan", "Asy-Syu'ara'", "An-Naml", "Al-Qasas", "Al-'Ankabut", "Ar-Rum", "Luqman", "As-Sajdah", "Al-Ahzab", "Saba'", "Fatir", "Ya-Sin", "As-Saffat", "Sad", "Az-Zumar", "Ghafir", "Fussilat", "Asy-Syura", "Az-Zukhruf", "Ad-Dukhan", "Al-Jasiyah", "Al-Ahqaf", "Muhammad", "Al-Fath", "Al-Hujurat", "Qaf", "Az-Zariyat", "At-Tur", "An-Najm", "Al-Qamar", "Ar-Rahman", "Al-Waqi'ah", "Al-Hadid", "Al-Mujadilah", "Al-Hasyr", "Al-Mumtahanah", "As-Saff", "Al-Jumu'ah", "Al-Munafiqun", "At-Tagabun", "At-Talaq", "At-Tahrim", "Al-Mulk", "Al-Qalam", "Al-Haqqah", "Al-Ma'arij", "Nuh", "Al-Jinn", "Al-Muzzammil", "Al-Muddassir", "Al-Qiyamah", "Al-Insan", "Al-Mursalat", "An-Naba'", "An-Nazi'at", "'Abasa", "At-Takwir", "Al-Infitar", "Al-Mutaffifin", "Al-Insyiqaq", "Al-Buruj", "At-Tariq", "Al-A'la", "Al-Gasyiyah", "Al-Fajr", "Al-Balad", "Asy-Syams", "Al-Lail", "Ad-Duha", "Asy-Syarh", "At-Tin", "Al-'Alaq", "Al-Qadr", "Al-Bayyinah", "Az-Zalzalah", "Al-'Adiyat", "Al-Qari'ah", "At-Takasur", "Al-'Asr", "Al-Humazah", "Al-Fil", "Quraisy", "Al-Ma'un", "Al-Kausar", "Al-Kafirun", "An-Nasr", "Al-Masad", "Al-Ikhlas", "Al-Falaq", "An-Nas"];
+
+        function setChecklistTitle() {
+            const today = new Date();
+            const options = { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' };
+            const formattedDate = today.toLocaleDateString('id-ID', options).replace(/\//g, '/');
+            dom.checklistTitle.textContent = `Checklist Hari Ini : (${formattedDate})`;
+        }
+
+        function populateSurahDropdown(selectElement = dom.surahSelect) {
+            selectElement.innerHTML = '<option value="">-- Pilih Surat --</option>';
+            surahList.forEach((surah, index) => {
+                const option = document.createElement('option');
+                option.value = `${index + 1}. ${surah}`;
+                option.textContent = `${index + 1}. ${surah}`;
+                selectElement.appendChild(option);
+            });
+        }
+        
+        async function seedInitialData() {
+            const memberSnapshot = await getDocs(membersCollection);
+            if (memberSnapshot.empty) {
+                console.log("Database anggota kosong, mengisi data awal...");
+                const team = ["Julia", "Nando", "Amin", "Qohar", "Mia", "Adit"];
+                const memberBatch = writeBatch(db);
+                team.forEach(name => {
+                    const newMemberRef = doc(membersCollection);
+                    memberBatch.set(newMemberRef, { name });
+                });
+                await memberBatch.commit();
+                console.log("Data tim awal berhasil ditambahkan.");
+            }
+
+            const attendanceSnapshot = await getDocs(query(attendanceCollection, limit(1)));
+            if (attendanceSnapshot.empty) {
+                console.log("Database absensi kosong, mengisi data contoh...");
+                const members = (await getDocs(membersCollection)).docs.map(d => ({id: d.id, ...d.data()}));
+                if (members.length === 0) return;
+
+                const attendanceBatch = writeBatch(db);
+                const today = new Date();
+                const startDate = new Date(today.getFullYear(), today.getMonth() - 2, 1); // Seed data for last 3 months
+
+                for (let d = new Date(startDate); d <= today; d.setDate(d.getDate() + 1)) {
+                    for (const member of members) {
+                        if (Math.random() > 0.25) {
+                            const attendanceDate = new Date(d);
+                            const hour = Math.floor(Math.random() * 3) + 4; // 4, 5, 6
+                            const minute = Math.floor(Math.random() * 60);
+                            attendanceDate.setHours(hour, minute);
+                            const randomSurah = surahList[Math.floor(Math.random() * surahList.length)];
+                            const randomAyah = Math.floor(Math.random() * 7) + 1;
+                            const newAttendanceRef = doc(attendanceCollection);
+                            attendanceBatch.set(newAttendanceRef, {
+                                memberId: member.id, memberName: member.name, surah: randomSurah, ayah: randomAyah, date: Timestamp.fromDate(attendanceDate)
+                            });
+                        }
+                    }
+                }
+                await attendanceBatch.commit();
+                console.log("Data absensi contoh berhasil ditambahkan.");
+            }
+        }
+
+        function showMessage(message, type = 'success') {
+            dom.messageBox.textContent = message;
+            dom.messageBox.className = `p-4 mb-4 rounded-lg ${type === 'success' ? 'bg-green-500/30 text-green-300' : 'bg-red-500/30 text-red-300'}`;
+            dom.messageBox.classList.remove('hidden');
+            setTimeout(() => dom.messageBox.classList.add('hidden'), 3000);
+        }
+
+        function updateAllViews() {
+            if (allMembers.length === 0) return;
+
+            const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+            const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+            
+            const [cutoffHours, cutoffMinutes] = appSettings.cutoffTime.split(':').map(Number);
+            const cutoffTime = new Date(todayStart);
+            cutoffTime.setHours(cutoffHours, cutoffMinutes, 0, 0);
+
+            const alfaTime = new Date(todayStart);
+            alfaTime.setHours(6, 0, 0, 0);
+            
+            const attendedToday = new Map();
+            allAttendanceData
+                .filter(att => {
+                    const attDate = att.date.toDate();
+                    return attDate >= todayStart && attDate <= todayEnd;
+                })
+                .forEach(att => attendedToday.set(att.memberId, att));
+
+            const onTime = [], late = [], absent = [];
+            allMembers.forEach(member => {
+                if (attendedToday.has(member.id)) {
+                    const attendanceData = attendedToday.get(member.id);
+                    const attDate = attendanceData.date.toDate();
+                    if (attDate >= alfaTime) {
+                        absent.push(member);
+                    } else if (attDate >= cutoffTime) {
+                        late.push({ ...member, ...attendanceData });
+                    } else {
+                        onTime.push({ ...member, ...attendanceData });
+                    }
+                } else {
+                    absent.push(member);
+                }
+            });
+
+            renderDashboardLists(onTime, late, absent);
+            renderMonthlyRecap(displayedMonthDate, dom.monthlyRecapContainer, false);
+            renderLeaderboard();
+        }
+        
+        function renderDashboardLists(onTime, late, absent) {
+            const now = new Date();
+            const alfaTime = new Date();
+            alfaTime.setHours(6, 0, 0, 0);
+
+            const createListItem = (data, listType) => {
+                const li = document.createElement('li');
+                li.className = 'bg-gray-800/50 p-2 rounded';
+                const time = data.date ? data.date.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '';
+                li.innerHTML = `<span>${data.name || data.memberName}</span><span class="text-xs text-gray-400 ml-2">${listType === 'late' ? `(${time})` : ''}</span>`;
+                return li;
+            };
+            dom.attendedListOnTime.innerHTML = onTime.length > 0 ? onTime.map(d => createListItem(d, 'ontime').outerHTML).join('') : '<li class="text-gray-400">Belum ada.</li>';
+            dom.attendedListLate.innerHTML = late.length > 0 ? late.map(d => createListItem(d, 'late').outerHTML).join('') : '<li class="text-gray-400">Tidak ada yang terlambat 😍</li>';
+            dom.unattendedList.innerHTML = absent.length > 0 ? absent.map(d => createListItem(d, 'absent').outerHTML).join('') : '<li class="text-gray-400">Semua sudah absen!</li>';
+            
+            dom.absentTitle.textContent = now >= alfaTime ? '❌ Tidak Absen' : '❌ Belum Absen';
+        }
+        
+        function renderMonthlyRecap(targetDate, container, isAdminView) {
+            const year = targetDate.getFullYear();
+            const month = targetDate.getMonth();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const monthName = targetDate.toLocaleString('id-ID', { month: 'long', year: 'numeric' });
+            
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const isCurrentMonth = new Date().getMonth() === month && new Date().getFullYear() === year;
+
+            let headerHtml = `<th class="p-2 sticky left-0 bg-gray-900/80 z-10">Nama</th>`;
+            const dayFormatter = new Intl.DateTimeFormat('id-ID', { weekday: 'short' });
+            for (let i = 1; i <= daysInMonth; i++) {
+                const date = new Date(year, month, i);
+                const dayName = dayFormatter.format(date).slice(0, 3);
+                headerHtml += `<th class="p-2 text-center min-w-[120px]">${i}<br>(${dayName})</th>`;
+            }
+
+            const attendanceMap = new Map();
+            allAttendanceData.forEach(att => {
+                const date = att.date.toDate();
+                if (date.getFullYear() === year && date.getMonth() === month) {
+                    const dateKey = `${att.memberId}-${date.getDate()}`;
+                    if (!attendanceMap.has(dateKey)) { // Only take the first attendance of the day
+                        attendanceMap.set(dateKey, att);
+                    }
+                }
+            });
+
+            let bodyHtml = '';
+            allMembers.forEach(member => {
+                bodyHtml += '<tr>';
+                bodyHtml += `<td class="p-2 font-medium whitespace-nowrap sticky left-0 bg-gray-900/80 z-10">${member.name}</td>`;
+                for (let i = 1; i <= daysInMonth; i++) {
+                    const cellDate = new Date(year, month, i);
+                    cellDate.setHours(23,59,59,999); // Compare end of day
+                    const mapKey = `${member.id}-${i}`;
+                    const fullDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                    
+                    if (attendanceMap.has(mapKey)) {
+                        const attData = attendanceMap.get(mapKey);
+                        const attTime = attData.date.toDate();
+                        const [cutoffHours, cutoffMinutes] = appSettings.cutoffTime.split(':').map(Number);
+                        const cutoffTime = new Date(attTime);
+                        cutoffTime.setHours(cutoffHours, cutoffMinutes, 0, 0);
+                        const alfaTime = new Date(attTime);
+                        alfaTime.setHours(6, 0, 0, 0);
+
+                        if (attTime >= alfaTime) {
+                            const actionButtons = isAdminView ? `<div class="flex justify-center items-center"><button class="edit-attendance-btn text-blue-500/50 hover:text-blue-400 text-xs" data-doc-id="${attData.docId}">✎</button><button class="delete-attendance-btn text-red-500/50 hover:text-red-400 text-xs ml-1" data-doc-id="${attData.docId}">🗑️</button></div>` : '';
+                             bodyHtml += `<td class="text-center p-2 text-red-400">Alfa ${actionButtons}</td>`;
+                        } else {
+                            const timeStr = attTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.',':');
+                            const colorClass = attTime < cutoffTime ? 'text-green-400' : 'text-yellow-400';
+                            const surahName = attData.surah.split('. ')[1] || attData.surah;
+                            const surahInfo = `<div class="text-[10px] text-gray-500 truncate" title="${attData.surah}, Ayat ${attData.ayah}">${surahName}, ${attData.ayah}</div>`;
+                            const actionButtons = isAdminView ? `<div class="flex justify-center items-center mt-1"><button class="edit-attendance-btn text-blue-500/50 hover:text-blue-400 text-xs" data-doc-id="${attData.docId}">✎</button><button class="delete-attendance-btn text-red-500/50 hover:text-red-400 text-xs ml-1" data-doc-id="${attData.docId}">🗑️</button></div>` : '';
+                            bodyHtml += `<td class="p-2 text-center font-mono ${colorClass}"><div>${timeStr}</div>${surahInfo}${actionButtons}</td>`;
+                        }
+                    } else {
+                        if (cellDate < today) {
+                            const addBtn = isAdminView ? `<button class="add-past-attendance-btn text-blue-500/50 hover:text-blue-400 text-xs ml-1" data-member-id="${member.id}" data-member-name="${member.name}" data-date="${fullDateStr}">+</button>` : '';
+                            bodyHtml += `<td class="text-center p-2 text-red-400">Alfa ${addBtn}</td>`;
+                        } else {
+                            bodyHtml += `<td class="text-center p-2 text-gray-600">-</td>`;
+                        }
+                    }
+                }
+                bodyHtml += '</tr>';
+            });
+
+            const navIdSuffix = isAdminView ? '-admin' : '';
+            const printButton = isAdminView ? '' : `<button id="print-report-btn" class="bg-gray-700 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg transition text-sm">Cetak Laporan</button>`;
+
+            container.innerHTML = `
+                <section id="recap-section" class="glassmorphism rounded-2xl p-6 shadow-2xl fade-in">
+                    <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
+                        <h2 class="text-2xl font-semibold">Rekap Absensi Bulan ${monthName}</h2>
+                        <div class="flex items-center space-x-2">
+                            ${printButton}
+                            <button id="prev-month-btn${navIdSuffix}" class="month-nav-btn p-2 rounded-full hover:bg-gray-700 transition">◄</button>
+                            <button id="next-month-btn${navIdSuffix}" class="month-nav-btn p-2 rounded-full hover:bg-gray-700 transition" ${isCurrentMonth ? 'disabled' : ''}>►</button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">${bodyHtml ? `<table class="w-full text-left text-sm"><thead><tr class="border-b border-gray-700">${headerHtml}</tr></thead><tbody>${bodyHtml}</tbody></table>` : '<p class="text-gray-400 text-center">Memuat rekap...</p>'}</div>
+                </section>
+            `;
+            
+            if (!isAdminView) {
+                document.getElementById('print-report-btn').addEventListener('click', printReport);
+            }
+            
+            document.getElementById(`prev-month-btn${navIdSuffix}`).addEventListener('click', () => {
+                const dateTarget = isAdminView ? adminDisplayedMonthDate : displayedMonthDate;
+                dateTarget.setMonth(dateTarget.getMonth() - 1);
+                renderMonthlyRecap(dateTarget, container, isAdminView);
+                if (document.querySelector('button[data-filter="monthly"]').classList.contains('active')) {
+                    generateChart('monthly');
+                }
+            });
+            document.getElementById(`next-month-btn${navIdSuffix}`).addEventListener('click', () => {
+                const dateTarget = isAdminView ? adminDisplayedMonthDate : displayedMonthDate;
+                dateTarget.setMonth(dateTarget.getMonth() + 1);
+                renderMonthlyRecap(dateTarget, container, isAdminView);
+                if (document.querySelector('button[data-filter="monthly"]').classList.contains('active')) {
+                    generateChart('monthly');
+                }
+            });
+        }
+
+
+        function generateChart(filter = 'monthly', dateRange = null) {
+            if (attendanceChart) attendanceChart.destroy();
+            
+            let chartConfig;
+            let chartData;
+
+            if (filter === 'monthly') {
+                const dateTarget = document.querySelector('button[data-filter="monthly"]').classList.contains('active') ? displayedMonthDate : adminDisplayedMonthDate;
+                const year = dateTarget.getFullYear();
+                const month = dateTarget.getMonth();
+                
+                const today = new Date();
+                const isCurrentMonth = month === today.getMonth() && year === today.getFullYear();
+                
+                const totalDaysInPeriod = isCurrentMonth ? today.getDate() : new Date(year, month + 1, 0).getDate();
+
+                const periodStart = new Date(year, month, 1);
+                const periodEnd = isCurrentMonth ? today : new Date(year, month, totalDaysInPeriod, 23, 59, 59);
+
+                const monthName = dateTarget.toLocaleString('id-ID', { month: 'long', year: 'numeric' });
+                dom.chartSubtitle.textContent = `Presentase Tim Bulan ${monthName}`;
+                
+                chartData = allMembers.map(member => {
+                    const attendedDays = new Set(
+                        allAttendanceData
+                            .filter(att => {
+                                const attDate = att.date.toDate();
+                                const [cutoffHours, cutoffMinutes] = appSettings.cutoffTime.split(':').map(Number);
+                                const cutoffTime = new Date(attDate);
+                                cutoffTime.setHours(cutoffHours, cutoffMinutes, 0, 0);
+                                return att.memberId === member.id && attDate >= periodStart && attDate <= periodEnd && attDate < cutoffTime;
+                            })
+                            .map(att => att.date.toDate().toLocaleDateString())
+                    ).size;
+                    const percentage = (totalDaysInPeriod > 0) ? (attendedDays / totalDaysInPeriod) * 100 : 0;
+                    return { name: member.name, value: percentage };
+                });
+
+            } else if (filter === 'custom' && dateRange) {
+                const { start, end } = dateRange;
+                const diffTime = Math.abs(end - start);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+                const dateFormatter = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'long' });
+                dom.chartSubtitle.textContent = `Presentase Tim: ${dateFormatter.format(start)} - ${dateFormatter.format(end)}`;
+                
+                chartData = allMembers.map(member => {
+                    const attendedDays = new Set(
+                        allAttendanceData
+                            .filter(att => {
+                                const attDate = att.date.toDate();
+                                const [cutoffHours, cutoffMinutes] = appSettings.cutoffTime.split(':').map(Number);
+                                const cutoffTime = new Date(attDate);
+                                cutoffTime.setHours(cutoffHours, cutoffMinutes, 0, 0);
+                                return att.memberId === member.id && attDate >= start && attDate <= end && attDate < cutoffTime;
+                            })
+                            .map(att => att.date.toDate().toLocaleDateString())
+                    ).size;
+                    const percentage = (diffDays > 0) ? (attendedDays / diffDays) * 100 : 0;
+                    return { name: member.name, value: percentage };
+                });
+            }
+
+            if (chartData) {
+                 chartConfig = {
+                    type: 'bar',
+                    data: {
+                        labels: chartData.map(m => m.name),
+                        datasets: [{ label: 'Presentase', data: chartData.map(m => m.value), backgroundColor: 'rgba(59, 130, 246, 0.6)' }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        scales: { x: { beginAtZero: true, max: 100, ticks: { color: '#9ca3af', callback: v => v + "%" } }, y: { ticks: { color: '#9ca3af' } } },
+                        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` Presentase: ${c.raw.toFixed(1)}%` } } }
+                    }
+                };
+                attendanceChart = new Chart(dom.chartCanvas, chartConfig);
+            }
+        }
+
+        function renderLeaderboard() {
+            const today = new Date();
+            const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+            const daysPassed = today.getDate();
+
+            const performanceData = allMembers.map(member => {
+                const onTimeDays = new Set(
+                    allAttendanceData
+                        .filter(att => {
+                            const attDate = att.date.toDate();
+                             const [cutoffHours, cutoffMinutes] = appSettings.cutoffTime.split(':').map(Number);
+                            const cutoffTime = new Date(attDate);
+                            cutoffTime.setHours(cutoffHours, cutoffMinutes, 0, 0);
+                            return att.memberId === member.id && attDate >= monthStart && attDate < cutoffTime;
+                        })
+                        .map(att => att.date.toDate().toLocaleDateString())
+                ).size;
+                return { name: member.name, percentage: (daysPassed > 0 ? (onTimeDays / daysPassed) * 100 : 0) };
+            }).sort((a, b) => b.percentage - a.percentage);
+
+            const top3 = performanceData.slice(0, 3);
+            const bottom3 = performanceData.slice(-3).reverse();
+
+            const top3Html = top3.map((p, i) => `<li class="flex items-center"><span class="mr-2">${i+1}.</span><span>${p.name}</span><span class="ml-auto font-semibold text-green-400">${p.percentage.toFixed(1)}%</span></li>`).join('');
+            const bottom3Html = bottom3.map((p, i) => `<li class="flex items-center"><span class="mr-2">${i+1}.</span><span>${p.name}</span><span class="ml-auto font-semibold text-red-400">${p.percentage.toFixed(1)}%</span></li>`).join('');
+
+            dom.leaderboardContainer.innerHTML = `
+                <div class="glassmorphism rounded-2xl p-6 shadow-2xl fade-in">
+                    <h3 class="text-xl font-semibold mb-4 text-green-300">🏆 3 Tim Paling Rajin (Bulan Ini)</h3>
+                    <ol class="space-y-2">${top3Html}</ol>
+                </div>
+                <div class="glassmorphism rounded-2xl p-6 shadow-2xl fade-in">
+                    <h3 class="text-xl font-semibold mb-4 text-red-400">🧗 3 Tim Perlu Ditingkatkan (Bulan Ini)</h3>
+                    <ol class="space-y-2">${bottom3Html}</ol>
+                </div>
+            `;
+        }
+        
+        function showMemberDetail(memberId) {
+            // This function can be re-implemented if needed, but is currently removed from UI
+        }
+
+        async function showEditAttendance(docId, isAdding = false, memberData = {}) {
+            let data = {};
+            let dateString, timeString;
+
+            if (isAdding) {
+                dom.editModalTitle.textContent = `Absenkan ${memberData.name}`;
+                const targetDate = new Date(memberData.date + 'T00:00:00');
+                dateString = targetDate.toISOString().split('T')[0];
+                timeString = "04:30";
+                data.ayah = 1; // Default
+            } else {
+                dom.editModalTitle.textContent = "Edit Absensi";
+                const attendanceDoc = await getDoc(doc(db, "attendance", docId));
+                if (!attendanceDoc.exists()) {
+                    showMessage("Data absensi tidak ditemukan.", "error");
+                    return;
+                }
+                data = attendanceDoc.data();
+                const date = data.date.toDate();
+                dateString = date.toISOString().split('T')[0];
+                timeString = date.toTimeString().slice(0, 5);
+            }
+
+            dom.editAttendanceForm.innerHTML = `
+                <input type="hidden" id="edit-doc-id" value="${isAdding ? '' : docId}">
+                <input type="hidden" id="edit-member-id" value="${isAdding ? memberData.id : ''}">
+                <input type="hidden" id="edit-member-name" value="${isAdding ? memberData.name : ''}">
+                <div>
+                    <label class="block text-sm">Tanggal</label>
+                    <input type="date" id="edit-date" value="${dateString}" class="w-full bg-gray-800 border border-gray-600 rounded-md p-2 mt-1">
+                </div>
+                <div>
+                    <label class="block text-sm">Waktu</label>
+                    <input type="time" id="edit-time" value="${timeString}" class="w-full bg-gray-800 border border-gray-600 rounded-md p-2 mt-1">
+                </div>
+                <div>
+                    <label class="block text-sm">Surat</label>
+                    <select id="edit-surah" class="w-full bg-gray-800 border border-gray-600 rounded-lg p-3 mt-1"></select>
+                </div>
+                <div>
+                    <label class="block text-sm">Ayat</label>
+                    <input type="number" id="edit-ayah" value="${data.ayah}" class="w-full bg-gray-800 border border-gray-600 rounded-lg p-3 mt-1">
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition">Simpan</button>
+            `;
+            const editSurahSelect = document.getElementById('edit-surah');
+            populateSurahDropdown(editSurahSelect);
+            if (!isAdding) {
+                editSurahSelect.value = data.surah;
+            }
+            dom.editAttendanceModal.classList.remove('hidden');
+        }
+
+        function printReport() {
+            const recapSection = document.getElementById('recap-section').cloneNode(true);
+            recapSection.querySelector('.flex.justify-between').remove(); // Remove header with buttons
+            const recapHtml = recapSection.innerHTML;
+
+            const chartImg = attendanceChart.toBase64Image();
+            const chartHtml = `<div style="page-break-before: always; padding-top: 2rem;"><h2 style="font-size: 1.5rem; font-weight: 600; text-align: center; margin-bottom: 1rem;">${dom.chartSubtitle.textContent}</h2><img src="${chartImg}" style="width: 100%; max-width: 800px; margin: auto; display: block;"></div>`;
+
+            const printWindow = window.open('', '', 'height=800,width=1200');
+            printWindow.document.write('<html><head><title>Laporan Absensi</title>');
+            printWindow.document.write('<style>body { font-family: sans-serif; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #ccc; padding: 8px; text-align: left; font-size: 10px; } th { background-color: #f2f2f2; } .recap-section { margin-bottom: 2rem; } </style>');
+            printWindow.document.write('</head><body>');
+            printWindow.document.write(recapHtml);
+            printWindow.document.write(chartHtml);
+            printWindow.document.write('</body></html>');
+            printWindow.document.close();
+            printWindow.focus();
+            setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
+        }
+
+        // --- EVENT LISTENERS ---
+        dom.openAdminPanelBtn.addEventListener('click', () => {
+            dom.passwordModal.classList.remove('hidden');
+            dom.passwordInput.focus();
+        });
+        dom.closePasswordModalBtn.addEventListener('click', () => dom.passwordModal.classList.add('hidden'));
+
+        dom.passwordForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (dom.passwordInput.value === "admin123") {
+                dom.passwordModal.classList.add('hidden');
+                dom.passwordInput.value = '';
+                dom.passwordError.classList.add('hidden');
+                dom.adminModal.classList.remove('hidden');
+                adminDisplayedMonthDate = new Date();
+                renderMonthlyRecap(adminDisplayedMonthDate, dom.adminMonthlyRecapContainer, true);
+            } else {
+                dom.passwordError.classList.remove('hidden');
+            }
+        });
+
+        dom.closeAdminPanelBtn.addEventListener('click', () => dom.adminModal.classList.add('hidden'));
+        dom.openCustomRangePopupBtn.addEventListener('click', () => dom.customRangeModal.classList.remove('hidden'));
+        dom.closeCustomRangePopupBtn.addEventListener('click', () => dom.customRangeModal.classList.add('hidden'));
+        dom.closeEditAttendanceModalBtn.addEventListener('click', () => dom.editAttendanceModal.classList.add('hidden'));
+
+        dom.adminTabs.forEach(button => {
+            button.addEventListener('click', () => {
+                dom.adminTabs.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                dom.adminTabContents.forEach(content => content.classList.add('hidden'));
+                const tabContent = document.getElementById(`tab-content-${button.dataset.tab}`);
+                tabContent.classList.remove('hidden');
+                if (button.dataset.tab === 'rekap') {
+                    adminDisplayedMonthDate = new Date();
+                    renderMonthlyRecap(adminDisplayedMonthDate, dom.adminMonthlyRecapContainer, true);
+                }
+            });
+        });
+
+        dom.chartFilters.addEventListener('click', (e) => {
+            if (e.target.matches('button[data-filter="monthly"]')) {
+                document.querySelectorAll('.chart-filter-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                displayedMonthDate = new Date();
+                renderMonthlyRecap(displayedMonthDate, dom.monthlyRecapContainer, false);
+                generateChart('monthly');
+            }
+        });
+
+        dom.customRangeFormPopup.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const startDate = dom.startDatePopupInput.value;
+            const endDate = dom.endDatePopupInput.value;
+            if (startDate && endDate && startDate <= endDate) {
+                document.querySelectorAll('.chart-filter-btn').forEach(b => b.classList.remove('active'));
+                dom.openCustomRangePopupBtn.classList.add('active');
+                const start = new Date(startDate + 'T00:00:00');
+                const end = new Date(endDate + 'T23:59:59');
+                generateChart('custom', { start, end });
+                dom.customRangeModal.classList.add('hidden');
+            } else {
+                showMessage('Rentang tanggal tidak valid.', 'error');
+            }
+        });
+
+        dom.attendanceForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const { memberSelect, surahSelect, ayahInput, submitButton } = dom;
+            if (!memberSelect.value || !surahSelect.value || !ayahInput.value) { showMessage('Semua kolom harus diisi.', 'error'); return; }
+            submitButton.disabled = true; submitButton.textContent = 'Mengirim...';
+            try {
+                const memberName = allMembers.find(m => m.id === memberSelect.value)?.name;
+                await addDoc(attendanceCollection, { memberId: memberSelect.value, memberName, surah: surahSelect.value, ayah: parseInt(ayahInput.value), date: Timestamp.now() });
+                showMessage('Laporan berhasil dikirim!', 'success');
+                dom.attendanceForm.reset(); surahSelect.selectedIndex = 0;
+            } catch (error) { showMessage('Gagal mengirim laporan.', 'error'); } 
+            finally { submitButton.disabled = false; submitButton.textContent = 'Kirim Laporan'; }
+        });
+
+        dom.addMemberForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = dom.newMemberNameInput.value.trim();
+            if (name) {
+                try {
+                    await addDoc(membersCollection, { name });
+                    showMessage(`Anggota "${name}" berhasil ditambahkan.`, 'success');
+                    dom.newMemberNameInput.value = '';
+                } catch (error) { showMessage('Gagal menambahkan anggota.', 'error'); }
+            } else { showMessage('Nama anggota tidak boleh kosong.', 'error'); }
+        });
+
+        dom.settingsForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newSettings = {
+                cutoffTime: dom.cutoffTimeSetting.value,
+                announcement: dom.announcementSetting.value
+            };
+            try {
+                await setDoc(settingsDoc, newSettings, { merge: true });
+                showMessage("Pengaturan berhasil disimpan.", "success");
+            } catch (error) {
+                showMessage("Gagal menyimpan pengaturan.", "error");
+            }
+        });
+        
+        dom.editAttendanceForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const docId = document.getElementById('edit-doc-id').value;
+            const date = document.getElementById('edit-date').value;
+            const time = document.getElementById('edit-time').value;
+            const surah = document.getElementById('edit-surah').value;
+            const ayah = parseInt(document.getElementById('edit-ayah').value);
+
+            const [year, month, day] = date.split('-').map(Number);
+            const [hours, minutes] = time.split(':').map(Number);
+            const newDate = new Date(year, month - 1, day, hours, minutes);
+            const newTimestamp = Timestamp.fromDate(newDate);
+
+            try {
+                if (docId) { // Editing existing
+                    await updateDoc(doc(db, "attendance", docId), { date: newTimestamp, surah, ayah });
+                    showMessage("Absensi berhasil diperbarui.", "success");
+                } else { // Adding new for a past date
+                    const memberId = document.getElementById('edit-member-id').value;
+                    const memberName = document.getElementById('edit-member-name').value;
+                    await addDoc(attendanceCollection, { memberId, memberName, surah, ayah, date: newTimestamp });
+                    showMessage(`${memberName} berhasil diabsenkan.`, 'success');
+                }
+                dom.editAttendanceModal.classList.add('hidden');
+            } catch (error) {
+                console.error("Error saving attendance: ", error);
+                showMessage("Gagal menyimpan data.", "error");
+            }
+        });
+
+        document.body.addEventListener('click', async (e) => {
+            if (e.target.matches('.delete-member-btn')) {
+                const id = e.target.dataset.id;
+                const memberName = allMembers.find(m => m.id === id)?.name || 'anggota';
+                if (confirm(`Yakin ingin menghapus ${memberName}?`)) {
+                    try { await deleteDoc(doc(db, "members", id)); showMessage(`Anggota "${memberName}" telah dihapus.`, 'success'); } 
+                    catch (error) { showMessage('Gagal menghapus anggota.', 'error'); }
+                }
+            }
+            if (e.target.matches('.delete-attendance-btn')) {
+                const docId = e.target.dataset.docId;
+                try { 
+                    await deleteDoc(doc(db, "attendance", docId)); 
+                    showMessage('Data absen berhasil dihapus.', 'success'); 
+                } catch (error) { 
+                    showMessage('Gagal menghapus data.', 'error'); 
+                }
+            }
+             if (e.target.matches('.edit-attendance-btn')) {
+                showEditAttendance(e.target.dataset.docId, false);
+            }
+            if (e.target.matches('.add-past-attendance-btn')) {
+                const memberId = e.target.dataset.memberId;
+                const memberName = e.target.dataset.memberName;
+                const dateStr = e.target.dataset.date;
+                showEditAttendance(null, true, { id: memberId, name: memberName, date: dateStr });
+            }
+        });
+        
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                setChecklistTitle();
+                await seedInitialData();
+                populateSurahDropdown();
+                
+                onSnapshot(settingsDoc, (doc) => {
+                    if (doc.exists()) {
+                        appSettings = { ...appSettings, ...doc.data() };
+                    }
+                    dom.cutoffTimeSetting.value = appSettings.cutoffTime;
+                    dom.announcementSetting.value = appSettings.announcement;
+                    document.querySelectorAll('.cutoff-time-display').forEach(el => el.textContent = appSettings.cutoffTime);
+                    if (appSettings.announcement) {
+                        dom.announcementBanner.textContent = appSettings.announcement;
+                        dom.announcementBanner.classList.remove('hidden');
+                    } else {
+                         dom.announcementBanner.classList.add('hidden');
+                    }
+                    updateAllViews();
+                });
+
+                onSnapshot(query(membersCollection), (snapshot) => {
+                    allMembers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => a.name.localeCompare(b.name));
+                    
+                    const memberOptions = '<option value="">-- Pilih Nama --</option>' + allMembers.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+                    dom.memberSelect.innerHTML = memberOptions;
+                    dom.loginMemberSelect.innerHTML = memberOptions;
+
+                    dom.memberList.innerHTML = allMembers.length > 0 ? allMembers.map(m => `<li class="flex justify-between items-center bg-gray-800 p-2 rounded-lg"><span>${m.name}</span><button data-id="${m.id}" class="delete-member-btn text-red-400 hover:text-red-300 text-xs">Hapus</button></li>`).join('') : '<li class="text-gray-400">Belum ada anggota.</li>';
+                    updateAllViews();
+                });
+
+                onSnapshot(collection(db, "attendance"), (snapshot) => {
+                    allAttendanceData = snapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() }));
+                    updateAllViews();
+                    if (document.querySelector('.admin-tab-btn[data-tab="rekap"]').classList.contains('active')) {
+                        renderMonthlyRecap(adminDisplayedMonthDate, dom.adminMonthlyRecapContainer, true);
+                    }
+                    const activeFilter = document.querySelector('.chart-filter-btn.active');
+                    if (activeFilter && activeFilter.dataset.filter === 'monthly') {
+                        generateChart('monthly');
+                    }
+                });
+
+            } else {
+                try { await signInAnonymously(auth); } 
+                catch (error) { document.body.innerHTML = '<div class="text-center text-red-500 p-8">Gagal terhubung ke server. Periksa koneksi dan konfigurasi Firebase.</div>'; }
+            }
+        });
+
+        dom.userLoginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const memberId = dom.loginMemberSelect.value;
+            const password = dom.loginPasswordInput.value;
+            if (!memberId) {
+                showMessage("Silakan pilih nama Anda.", "error");
+                return;
+            }
+            if (password === 'masuk123') {
+                loggedInUser = allMembers.find(m => m.id === memberId);
+                dom.userLoginModal.classList.add('hidden');
+                dom.mainAppContent.classList.remove('hidden');
+                dom.memberSelect.value = loggedInUser.id;
+                dom.memberSelect.disabled = true;
+            } else {
+                dom.loginPasswordError.classList.remove('hidden');
+            }
+        });
+
+    </script>
+</body>
+</html>
