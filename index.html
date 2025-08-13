@@ -66,12 +66,21 @@
 
     <div id="main-app-content" class="container mx-auto p-4 md:p-8 relative hidden">
         <div class="absolute top-4 right-4">
-            <button id="open-admin-panel" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-lg transition">
-                Admin
-            </button>
+            <div class="relative">
+                <button id="menu-button" class="p-2 rounded-full hover:bg-gray-700 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01" />
+                    </svg>
+                </button>
+                <div id="menu-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-gray-800 rounded-lg shadow-lg py-1 z-20">
+                    <a href="#" id="menu-admin-btn" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700">Admin</a>
+                    <a href="#" id="menu-logout-btn" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700">Logout</a>
+                </div>
+            </div>
         </div>
 
         <header class="text-center mb-8 md:mb-12 fade-in">
+             <div id="welcome-banner" class="text-xl mb-4 text-gray-300"></div>
             <h1 class="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-teal-300">
                 ABSENSI CHECKLIST SUBUH
             </h1>
@@ -92,7 +101,7 @@
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label for="surah-select" class="block mb-2 text-sm font-medium text-gray-300">Nama Surat</label>
+                            <label for="surah-select" class="block mb-2 text-sm font-medium text-gray-300">Laporan</label>
                             <select id="surah-select" class="w-full bg-gray-800 border border-gray-600 rounded-lg p-3"></select>
                         </div>
                         <div>
@@ -335,6 +344,12 @@
             loginPasswordInput: document.getElementById('login-password-input'),
             loginPasswordError: document.getElementById('login-password-error'),
             leaderboardContainer: document.getElementById('leaderboard-container'),
+            logoutBtn: document.getElementById('logout-btn'),
+            welcomeBanner: document.getElementById('welcome-banner'),
+            menuButton: document.getElementById('menu-button'),
+            menuDropdown: document.getElementById('menu-dropdown'),
+            menuAdminBtn: document.getElementById('menu-admin-btn'),
+            menuLogoutBtn: document.getElementById('menu-logout-btn'),
         };
         
         // --- GLOBAL STATE ---
@@ -347,7 +362,7 @@
         let loggedInUser = null;
 
         // --- UTILITY & SETUP FUNCTIONS ---
-        const surahList = ["Al-Fatihah", "Al-Baqarah", "Ali 'Imran", "An-Nisa'", "Al-Ma'idah", "Al-An'am", "Al-A'raf", "Al-Anfal", "At-Tawbah", "Yunus", "Hud", "Yusuf", "Ar-Ra'd", "Ibrahim", "Al-Hijr", "An-Nahl", "Al-Isra'", "Al-Kahf", "Maryam", "Taha", "Al-Anbiya'", "Al-Hajj", "Al-Mu'minun", "An-Nur", "Al-Furqan", "Asy-Syu'ara'", "An-Naml", "Al-Qasas", "Al-'Ankabut", "Ar-Rum", "Luqman", "As-Sajdah", "Al-Ahzab", "Saba'", "Fatir", "Ya-Sin", "As-Saffat", "Sad", "Az-Zumar", "Ghafir", "Fussilat", "Asy-Syura", "Az-Zukhruf", "Ad-Dukhan", "Al-Jasiyah", "Al-Ahqaf", "Muhammad", "Al-Fath", "Al-Hujurat", "Qaf", "Az-Zariyat", "At-Tur", "An-Najm", "Al-Qamar", "Ar-Rahman", "Al-Waqi'ah", "Al-Hadid", "Al-Mujadilah", "Al-Hasyr", "Al-Mumtahanah", "As-Saff", "Al-Jumu'ah", "Al-Munafiqun", "At-Tagabun", "At-Talaq", "At-Tahrim", "Al-Mulk", "Al-Qalam", "Al-Haqqah", "Al-Ma'arij", "Nuh", "Al-Jinn", "Al-Muzzammil", "Al-Muddassir", "Al-Qiyamah", "Al-Insan", "Al-Mursalat", "An-Naba'", "An-Nazi'at", "'Abasa", "At-Takwir", "Al-Infitar", "Al-Mutaffifin", "Al-Insyiqaq", "Al-Buruj", "At-Tariq", "Al-A'la", "Al-Gasyiyah", "Al-Fajr", "Al-Balad", "Asy-Syams", "Al-Lail", "Ad-Duha", "Asy-Syarh", "At-Tin", "Al-'Alaq", "Al-Qadr", "Al-Bayyinah", "Az-Zalzalah", "Al-'Adiyat", "Al-Qari'ah", "At-Takasur", "Al-'Asr", "Al-Humazah", "Al-Fil", "Quraisy", "Al-Ma'un", "Al-Kausar", "Al-Kafirun", "An-Nasr", "Al-Masad", "Al-Ikhlas", "Al-Falaq", "An-Nas"];
+        const surahList = ["Al-Fatihah", "Al-Baqarah", "Ali 'Imran", "An-Nisa'", "Al-Ma'idah", "Al-An'am", "Al-A'raf", "Al-Anfal", "At-Tawbah", "Yunus", "Hud", "Yusuf", "Ar-Ra'd", "Ibrahim", "Al-Hijr", "An-Nahl", "Al-Isra'", "Al-Kahf", "Maryam", "Taha", "Al-Anbiya'", "Al-Hajj", "Al-Mu'minun", "An-Nur", "Al-Furqan", "Asy-Syu'ara'", "An-Naml", "Al-Qasas", "Al-'Ankabut", "Ar-Rum", "Luqman", "As-Sajdah", "Al-Ahzab", "Saba'", "Fatir", "Ya-Sin", "As-Saffat", "Sad", "Az-Zumar", "Ghafir", "Fussilat", "Asy-Syura", "Az-Zukhruf", "Ad-Dukhan", "Al-Jasiyah", "Al-Ahqaf", "Muhammad", "Al-Fath", "Al-Hujurat", "Qaf", "Az-Zariyat", "At-Tur", "An-Najm", "Al-Qamar", "Ar-Rahman", "Al-Waqi'ah", "Al-Hadid", "Al-Mujadilah", "Al-Hasyr", "Al-Mumtahanah", "As-Saff", "Al-Jumu'ah", "Al-Munafiqun", "At-Tagabun", "At-Talaq", "At-Tahrim", "Al-Mulk", "Al-Qalam", "Al-Haqqah", "Al-Ma'arij", "Nuh", "Al-Jinn", "Al-Muzzammil", "Al-Muddassir", "Al-Qiyamah", "Al-Insan", "Al-Mursalat", "An-Naba'", "An-Nazi'at", "'Abasa", "At-Takwir", "Al-Infitar", "Al-Mutaffifin", "Al-Insyiqaq", "Al-Buruj", "At-Tariq", "Al-A'la", "Al-Gasyiyah", "Al-Fajr", "Al-Balad", "Asy-Syams", "Al-Lail", "Ad-Duha", "Asy-Syarh", "At-Tin", "Al-'Alaq", "Al-Qadr", "Al-Bayyinah", "Az-Zalzalah", "Al-'Adiyat", "Al-Qari'ah", "At-Takasur", "Al-'Asr", "Al-Humazah", "Al-Fil", "Quraisy", "Al-Ma'un", "Al-Kausar", "Al-Kafirun", "An-Nasr", "Al-Masad", "Al-Ikhlas", "Al-Falaq", "An-Nas", "Halangan"];
 
         function setChecklistTitle() {
             const today = new Date();
@@ -357,11 +372,12 @@
         }
 
         function populateSurahDropdown(selectElement = dom.surahSelect) {
-            selectElement.innerHTML = '<option value="">-- Pilih Surat --</option>';
+            selectElement.innerHTML = '<option value="">-- Pilih Laporan --</option>';
             surahList.forEach((surah, index) => {
                 const option = document.createElement('option');
-                option.value = `${index + 1}. ${surah}`;
-                option.textContent = `${index + 1}. ${surah}`;
+                const isHalangan = surah === "Halangan";
+                option.value = isHalangan ? "115. Halangan" : `${index + 1}. ${surah}`;
+                option.textContent = isHalangan ? "115. Halangan" : `${index + 1}. ${surah}`;
                 selectElement.appendChild(option);
             });
         }
@@ -459,6 +475,7 @@
             renderDashboardLists(onTime, late, absent);
             renderMonthlyRecap(displayedMonthDate, dom.monthlyRecapContainer, false);
             renderLeaderboard();
+            updateWelcomeBanner();
         }
         
         function renderDashboardLists(onTime, late, absent) {
@@ -466,16 +483,17 @@
             const alfaTime = new Date();
             alfaTime.setHours(6, 0, 0, 0);
 
-            const createListItem = (data, listType) => {
+            const createListItem = (data) => {
                 const li = document.createElement('li');
                 li.className = 'bg-gray-800/50 p-2 rounded';
                 const time = data.date ? data.date.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '';
-                li.innerHTML = `<span>${data.name || data.memberName}</span><span class="text-xs text-gray-400 ml-2">${listType === 'late' ? `(${time})` : ''}</span>`;
-                return li;
+                const statusText = data.surah === '115. Halangan' ? '(Halangan)' : `(${time})`;
+                li.innerHTML = `<span>${data.name || data.memberName}</span><span class="text-xs text-gray-400 ml-2">${statusText}</span>`;
+                return li.outerHTML;
             };
-            dom.attendedListOnTime.innerHTML = onTime.length > 0 ? onTime.map(d => createListItem(d, 'ontime').outerHTML).join('') : '<li class="text-gray-400">Belum ada.</li>';
-            dom.attendedListLate.innerHTML = late.length > 0 ? late.map(d => createListItem(d, 'late').outerHTML).join('') : '<li class="text-gray-400">Tidak ada yang terlambat 😍</li>';
-            dom.unattendedList.innerHTML = absent.length > 0 ? absent.map(d => createListItem(d, 'absent').outerHTML).join('') : '<li class="text-gray-400">Semua sudah absen!</li>';
+            dom.attendedListOnTime.innerHTML = onTime.length > 0 ? onTime.map(d => createListItem(d)).join('') : '<li class="text-gray-400">Belum ada.</li>';
+            dom.attendedListLate.innerHTML = late.length > 0 ? late.map(d => createListItem(d)).join('') : '<li class="text-gray-400">Tidak ada yang terlambat 😍</li>';
+            dom.unattendedList.innerHTML = absent.length > 0 ? absent.map(d => createListItem(d)).join('') : '<li class="text-gray-400">Semua sudah absen!</li>';
             
             dom.absentTitle.textContent = now >= alfaTime ? '❌ Tidak Absen' : '❌ Belum Absen';
         }
@@ -528,20 +546,25 @@
                         const alfaTime = new Date(attTime);
                         alfaTime.setHours(6, 0, 0, 0);
 
+                        const timeStr = attTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.',':');
+                        const colorClass = attTime < cutoffTime ? 'text-green-400' : 'text-yellow-400';
+                        const actionButtons = isAdminView ? `<div class="flex justify-center items-center mt-1"><button class="edit-attendance-btn text-blue-500/50 hover:text-blue-400 text-xs" data-doc-id="${attData.docId}">✎</button><button class="delete-attendance-btn text-red-500/50 hover:text-red-400 text-xs ml-1" data-doc-id="${attData.docId}">🗑️</button></div>` : '';
+                        
                         if (attTime >= alfaTime) {
-                            const actionButtons = isAdminView ? `<div class="flex justify-center items-center"><button class="edit-attendance-btn text-blue-500/50 hover:text-blue-400 text-xs" data-doc-id="${attData.docId}">✎</button><button class="delete-attendance-btn text-red-500/50 hover:text-red-400 text-xs ml-1" data-doc-id="${attData.docId}">🗑️</button></div>` : '';
                              bodyHtml += `<td class="text-center p-2 text-red-400">Alfa ${actionButtons}</td>`;
+                        } else if (attData.surah === '115. Halangan') {
+                            bodyHtml += `<td class="p-2 text-center font-mono ${colorClass}"><div>${timeStr}</div><div class="text-[10px] text-gray-400">Halangan</div>${actionButtons}</td>`;
                         } else {
-                            const timeStr = attTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.',':');
-                            const colorClass = attTime < cutoffTime ? 'text-green-400' : 'text-yellow-400';
                             const surahName = attData.surah.split('. ')[1] || attData.surah;
                             const surahInfo = `<div class="text-[10px] text-gray-500 truncate" title="${attData.surah}, Ayat ${attData.ayah}">${surahName}, ${attData.ayah}</div>`;
-                            const actionButtons = isAdminView ? `<div class="flex justify-center items-center mt-1"><button class="edit-attendance-btn text-blue-500/50 hover:text-blue-400 text-xs" data-doc-id="${attData.docId}">✎</button><button class="delete-attendance-btn text-red-500/50 hover:text-red-400 text-xs ml-1" data-doc-id="${attData.docId}">🗑️</button></div>` : '';
                             bodyHtml += `<td class="p-2 text-center font-mono ${colorClass}"><div>${timeStr}</div>${surahInfo}${actionButtons}</td>`;
                         }
                     } else {
-                        if (cellDate < today) {
-                            const addBtn = isAdminView ? `<button class="add-past-attendance-btn text-blue-500/50 hover:text-blue-400 text-xs ml-1" data-member-id="${member.id}" data-member-name="${member.name}" data-date="${fullDateStr}">+</button>` : '';
+                        const now = new Date();
+                        const sixAmCellDate = new Date(cellDate);
+                        sixAmCellDate.setHours(6,0,0,0);
+                        if (cellDate < today || (cellDate.getTime() === today.getTime() && now >= sixAmCellDate)) {
+                            const addBtn = isAdminView ? `<div class="flex justify-center items-center"><button class="add-past-attendance-btn text-blue-500/50 hover:text-blue-400 text-xs" data-member-id="${member.id}" data-member-name="${member.name}" data-date="${fullDateStr}">+</button></div>` : '';
                             bodyHtml += `<td class="text-center p-2 text-red-400">Alfa ${addBtn}</td>`;
                         } else {
                             bodyHtml += `<td class="text-center p-2 text-gray-600">-</td>`;
@@ -553,6 +576,7 @@
 
             const navIdSuffix = isAdminView ? '-admin' : '';
             const printButton = isAdminView ? '' : `<button id="print-report-btn" class="bg-gray-700 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg transition text-sm">Cetak Laporan</button>`;
+            const markAlfaButton = isAdminView ? `<button id="mark-alfa-btn" class="bg-red-700 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition text-sm">Jadikan Alfa (Hari Ini)</button>` : '';
 
             container.innerHTML = `
                 <section id="recap-section" class="glassmorphism rounded-2xl p-6 shadow-2xl fade-in">
@@ -560,6 +584,7 @@
                         <h2 class="text-2xl font-semibold">Rekap Absensi Bulan ${monthName}</h2>
                         <div class="flex items-center space-x-2">
                             ${printButton}
+                            ${markAlfaButton}
                             <button id="prev-month-btn${navIdSuffix}" class="month-nav-btn p-2 rounded-full hover:bg-gray-700 transition">◄</button>
                             <button id="next-month-btn${navIdSuffix}" class="month-nav-btn p-2 rounded-full hover:bg-gray-700 transition" ${isCurrentMonth ? 'disabled' : ''}>►</button>
                         </div>
@@ -570,6 +595,8 @@
             
             if (!isAdminView) {
                 document.getElementById('print-report-btn').addEventListener('click', printReport);
+            } else {
+                document.getElementById('mark-alfa-btn').addEventListener('click', markAllAsAlfa);
             }
             
             document.getElementById(`prev-month-btn${navIdSuffix}`).addEventListener('click', () => {
@@ -598,14 +625,14 @@
             let chartData;
 
             if (filter === 'monthly') {
-                const dateTarget = document.querySelector('button[data-filter="monthly"]').classList.contains('active') ? displayedMonthDate : adminDisplayedMonthDate;
+                const dateTarget = document.querySelector('button[data-filter="monthly"]').classList.contains('active') ? displayedMonthDate : displayedMonthDate;
                 const year = dateTarget.getFullYear();
                 const month = dateTarget.getMonth();
                 
                 const today = new Date();
                 const isCurrentMonth = month === today.getMonth() && year === today.getFullYear();
                 
-                const totalDaysInPeriod = isCurrentMonth ? today.getDate() : new Date(year, month + 1, 0).getDate();
+                let totalDaysInPeriod = isCurrentMonth ? today.getDate() : new Date(year, month + 1, 0).getDate();
 
                 const periodStart = new Date(year, month, 1);
                 const periodEnd = isCurrentMonth ? today : new Date(year, month, totalDaysInPeriod, 23, 59, 59);
@@ -631,8 +658,10 @@
 
             } else if (filter === 'custom' && dateRange) {
                 const { start, end } = dateRange;
-                const diffTime = Math.abs(end - start);
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                let totalDaysInPeriod = 0;
+                for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                    totalDaysInPeriod++;
+                }
 
                 const dateFormatter = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'long' });
                 dom.chartSubtitle.textContent = `Presentase Tim: ${dateFormatter.format(start)} - ${dateFormatter.format(end)}`;
@@ -649,7 +678,7 @@
                             })
                             .map(att => att.date.toDate().toLocaleDateString())
                     ).size;
-                    const percentage = (diffDays > 0) ? (attendedDays / diffDays) * 100 : 0;
+                    const percentage = (totalDaysInPeriod > 0) ? (attendedDays / totalDaysInPeriod) * 100 : 0;
                     return { name: member.name, value: percentage };
                 });
             }
@@ -681,14 +710,15 @@
                     allAttendanceData
                         .filter(att => {
                             const attDate = att.date.toDate();
-                             const [cutoffHours, cutoffMinutes] = appSettings.cutoffTime.split(':').map(Number);
+                            const [cutoffHours, cutoffMinutes] = appSettings.cutoffTime.split(':').map(Number);
                             const cutoffTime = new Date(attDate);
                             cutoffTime.setHours(cutoffHours, cutoffMinutes, 0, 0);
                             return att.memberId === member.id && attDate >= monthStart && attDate < cutoffTime;
-                        })
-                        .map(att => att.date.toDate().toLocaleDateString())
+                        }).map(att => att.date.toDate().toLocaleDateString())
                 ).size;
-                return { name: member.name, percentage: (daysPassed > 0 ? (onTimeDays / daysPassed) * 100 : 0) };
+                
+                const percentage = (daysPassed > 0) ? (onTimeDays / daysPassed) * 100 : 0;
+                return { name: member.name, percentage };
             }).sort((a, b) => b.percentage - a.percentage);
 
             const top3 = performanceData.slice(0, 3);
@@ -709,10 +739,6 @@
             `;
         }
         
-        function showMemberDetail(memberId) {
-            // This function can be re-implemented if needed, but is currently removed from UI
-        }
-
         async function showEditAttendance(docId, isAdding = false, memberData = {}) {
             let data = {};
             let dateString, timeString;
@@ -749,7 +775,7 @@
                     <input type="time" id="edit-time" value="${timeString}" class="w-full bg-gray-800 border border-gray-600 rounded-md p-2 mt-1">
                 </div>
                 <div>
-                    <label class="block text-sm">Surat</label>
+                    <label class="block text-sm">Laporan</label>
                     <select id="edit-surah" class="w-full bg-gray-800 border border-gray-600 rounded-lg p-3 mt-1"></select>
                 </div>
                 <div>
@@ -786,11 +812,107 @@
             setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
         }
 
+        function updateWelcomeBanner() {
+            if (!loggedInUser) return;
+            dom.welcomeBanner.textContent = `Selamat Pagi, ${loggedInUser.name}!`;
+
+            const today = new Date();
+            let streak = 0;
+            for (let i = 0; i < 30; i++) {
+                const checkDate = new Date(today);
+                checkDate.setDate(today.getDate() - i);
+                const checkDateString = checkDate.toLocaleDateString();
+
+                const attendanceOnDay = allAttendanceData.find(att => {
+                    const attDate = att.date.toDate();
+                    const [cutoffHours, cutoffMinutes] = appSettings.cutoffTime.split(':').map(Number);
+                    const cutoffTime = new Date(attDate);
+                    cutoffTime.setHours(cutoffHours, cutoffMinutes, 0, 0);
+                    return att.memberId === loggedInUser.id && att.date.toDate().toLocaleDateString() === checkDateString && attDate < cutoffTime;
+                });
+
+                if (attendanceOnDay) {
+                    streak++;
+                } else {
+                    break;
+                }
+            }
+            if (streak > 1) {
+                dom.welcomeBanner.textContent += ` Anda sudah tepat waktu ${streak} hari berturut-turut! 🔥`;
+            }
+        }
+
+        async function markAllAsAlfa() {
+            const now = new Date();
+            if (now.getHours() < 8) {
+                showMessage("Fitur ini hanya bisa digunakan setelah jam 08:00 pagi.", "error");
+                return;
+            }
+
+            const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+            const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+            
+            const attendedTodayIds = new Set(allAttendanceData
+                .filter(att => {
+                    const attDate = att.date.toDate();
+                    return attDate >= todayStart && attDate <= todayEnd;
+                })
+                .map(att => att.memberId));
+
+            const absentMembers = allMembers.filter(member => !attendedTodayIds.has(member.id));
+
+            if (absentMembers.length === 0) {
+                showMessage("Semua anggota sudah absen hari ini.", "success");
+                return;
+            }
+
+            const batch = writeBatch(db);
+            absentMembers.forEach(member => {
+                const alfaTime = new Date();
+                alfaTime.setHours(8, 0, 0, 0); // Mark at 08:00
+                const newAttendanceRef = doc(collection(db, "attendance"));
+                batch.set(newAttendanceRef, {
+                    memberId: member.id,
+                    memberName: member.name,
+                    surah: "Alfa (Otomatis)",
+                    ayah: 0,
+                    date: Timestamp.fromDate(alfaTime)
+                });
+            });
+
+            try {
+                await batch.commit();
+                showMessage(`${absentMembers.length} anggota yang belum absen telah ditandai Alfa.`, "success");
+            } catch (error) {
+                console.error("Error marking as alfa: ", error);
+                showMessage("Gagal menandai Alfa.", "error");
+            }
+        }
+
         // --- EVENT LISTENERS ---
-        dom.openAdminPanelBtn.addEventListener('click', () => {
+        dom.menuButton.addEventListener('click', () => dom.menuDropdown.classList.toggle('hidden'));
+        document.addEventListener('click', (e) => {
+            if (!dom.menuButton.contains(e.target) && !dom.menuDropdown.contains(e.target)) {
+                dom.menuDropdown.classList.add('hidden');
+            }
+        });
+
+        dom.menuAdminBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            dom.menuDropdown.classList.add('hidden');
             dom.passwordModal.classList.remove('hidden');
             dom.passwordInput.focus();
         });
+        dom.menuLogoutBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            dom.menuDropdown.classList.add('hidden');
+            loggedInUser = null;
+            dom.mainAppContent.classList.add('hidden');
+            dom.userLoginModal.classList.remove('hidden');
+            dom.loginPasswordInput.value = '';
+            dom.loginPasswordError.classList.add('hidden');
+        });
+
         dom.closePasswordModalBtn.addEventListener('click', () => dom.passwordModal.classList.add('hidden'));
 
         dom.passwordForm.addEventListener('submit', (e) => {
@@ -855,13 +977,19 @@
         dom.attendanceForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const { memberSelect, surahSelect, ayahInput, submitButton } = dom;
-            if (!memberSelect.value || !surahSelect.value || !ayahInput.value) { showMessage('Semua kolom harus diisi.', 'error'); return; }
+            if (!memberSelect.value || !surahSelect.value) { showMessage('Nama dan Laporan harus diisi.', 'error'); return; }
+            if (surahSelect.value !== '115. Halangan' && !ayahInput.value) {
+                showMessage('Ayat harus diisi jika tidak Halangan.', 'error');
+                return;
+            }
             submitButton.disabled = true; submitButton.textContent = 'Mengirim...';
             try {
                 const memberName = allMembers.find(m => m.id === memberSelect.value)?.name;
-                await addDoc(attendanceCollection, { memberId: memberSelect.value, memberName, surah: surahSelect.value, ayah: parseInt(ayahInput.value), date: Timestamp.now() });
+                await addDoc(attendanceCollection, { memberId: memberSelect.value, memberName, surah: surahSelect.value, ayah: parseInt(ayahInput.value) || 0, date: Timestamp.now() });
                 showMessage('Laporan berhasil dikirim!', 'success');
-                dom.attendanceForm.reset(); surahSelect.selectedIndex = 0;
+                dom.attendanceForm.reset(); 
+                dom.memberSelect.value = loggedInUser.id;
+                surahSelect.selectedIndex = 0;
             } catch (error) { showMessage('Gagal mengirim laporan.', 'error'); } 
             finally { submitButton.disabled = false; submitButton.textContent = 'Kirim Laporan'; }
         });
@@ -898,7 +1026,7 @@
             const date = document.getElementById('edit-date').value;
             const time = document.getElementById('edit-time').value;
             const surah = document.getElementById('edit-surah').value;
-            const ayah = parseInt(document.getElementById('edit-ayah').value);
+            const ayah = parseInt(document.getElementById('edit-ayah').value) || 0;
 
             const [year, month, day] = date.split('-').map(Number);
             const [hours, minutes] = time.split(':').map(Number);
@@ -1016,8 +1144,20 @@
                 dom.mainAppContent.classList.remove('hidden');
                 dom.memberSelect.value = loggedInUser.id;
                 dom.memberSelect.disabled = true;
+                updateWelcomeBanner();
             } else {
                 dom.loginPasswordError.classList.remove('hidden');
+            }
+        });
+
+        dom.surahSelect.addEventListener('change', (e) => {
+            if (e.target.value === '115. Halangan') {
+                dom.ayahInput.disabled = true;
+                dom.ayahInput.value = '';
+                dom.ayahInput.classList.add('bg-gray-700');
+            } else {
+                dom.ayahInput.disabled = false;
+                dom.ayahInput.classList.remove('bg-gray-700');
             }
         });
 
